@@ -1,0 +1,63 @@
+version: '3.7'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./deploy/Dockerfile
+    image: commercial_petproject:${COMMERCIAL_PETPROJECT_VERSION:-latest}
+    restart: always
+    env_file:
+    - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      COMMERCIAL_PETPROJECT_HOST: 0.0.0.0
+      COMMERCIAL_PETPROJECT_DB_HOST: commercial_petproject-db
+      COMMERCIAL_PETPROJECT_DB_PORT: 5432
+      COMMERCIAL_PETPROJECT_DB_USER: commercial_petproject
+      COMMERCIAL_PETPROJECT_DB_PASS: commercial_petproject
+      COMMERCIAL_PETPROJECT_DB_BASE: commercial_petproject
+  db:
+    image: postgres:13.4-buster
+    hostname: commercial_petproject-db
+    environment:
+      POSTGRES_PASSWORD: "commercial_petproject"
+      POSTGRES_USER: "commercial_petproject"
+      POSTGRES_DB: "commercial_petproject"
+    volumes:
+    - commercial_petproject-db-data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test:
+      - CMD
+      - pg_isready
+      - -U
+      - commercial_petproject
+      interval: 2s
+      timeout: 3s
+      retries: 40
+
+
+
+  migrator:
+    image: commercial_petproject:${COMMERCIAL_PETPROJECT_VERSION:-latest}
+    restart: "no"
+    command: alembic upgrade head
+    environment:
+      COMMERCIAL_PETPROJECT_DB_HOST: commercial_petproject-db
+      COMMERCIAL_PETPROJECT_DB_PORT: 5432
+      COMMERCIAL_PETPROJECT_DB_USER: commercial_petproject
+      COMMERCIAL_PETPROJECT_DB_PASS: commercial_petproject
+      COMMERCIAL_PETPROJECT_DB_BASE: commercial_petproject
+    depends_on:
+      db:
+        condition: service_healthy
+
+
+
+
+volumes:
+  commercial_petproject-db-data:
+    name: commercial_petproject-db-data
